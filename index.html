@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0" />
+  <title>globe</title>
+  <link rel="stylesheet" href="https://unpkg.com/cesium@1.49.0/Build/Cesium/Widgets/widgets.css" />
+  <script src="https://unpkg.com/cesium@1.49.0/Build/Cesium/Cesium.js"></script>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+  <style>
+    .layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 100%;
+      user-select: none;
+      z-index: 1;
+    }
+
+    .layer.focus {
+      opacity: 0.75;
+      z-index: 2;
+    }
+
+    #usage {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      z-index: 3;
+      color: lime;
+      font-family: Consolas, monospace;
+      background: black;
+      border: 2px solid lime;
+      padding: 4px;
+      opacity: 0.25;
+    }
+
+    #usage:hover {
+      opacity: 1.0;
+    }
+
+    .cesium-viewer-bottom {
+      display: none !important;
+    }
+
+    #credit {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: auto;
+      height: auto;
+      z-index: 4;
+      font-size: 8pt;
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      text-indent: 0.5em;
+    }
+
+    #credit a {
+      color: white;
+
+    }
+  </style>
+</head>
+
+<body>
+  <div id="bg" class="layer"></div>
+  <div id="fg" class="layer focus"></div>
+  <div id="usage">
+    Usage: <br />
+    Drag to pan<br />
+    Mousewheel to zoomin/zoomout<br />
+    Dblclick or <button id="focus">this</button> to switch fg/bg
+  </div>
+  <div id="credit">
+    Maptiles by <a href='http://mierune.co.jp/' target='_blank'>MIERUNE</a>,
+    under CC BY. Data by <a href='http://osm.org/copyright' target='_blank'>OpenStreetMap</a> contributors, under ODbL.
+  </div>
+  <script>
+    var ellipsoid = new Cesium.Ellipsoid(
+      Cesium.Ellipsoid.WGS84.maximumRadius,
+      Cesium.Ellipsoid.WGS84.maximumRadius,
+      Cesium.Ellipsoid.WGS84.maximumRadius
+    );
+
+    var moving = 0;
+
+    var viewers = ["bg", "fg"].map(function(id, i) {
+      var viewer = new Cesium.Viewer(id, {
+        mapProjection: new Cesium.GeographicProjection(ellipsoid),
+        timeline: false,
+        animation: false,
+        homeButton: false,
+        geocoder: false,
+        sceneModePicker: false,
+        baseLayerPicker: false,
+        fullscreenButton: false,
+        navigationHelpButton: false,
+        imageryProvider: new Cesium.UrlTemplateImageryProvider({
+          url: "https://tile.mierune.co.jp/mierune/{z}/{x}/{y}.png",
+          minimumLevel: 2,
+          maximumLevel: 18
+        })
+      });
+      viewer.camera.setView({
+        destination: Cesium.Cartesian3.fromDegrees(140 - i * 2, 35 + i * 2, 2 * 10e6, ellipsoid),
+        orientation: {
+          heading: Cesium.Math.toRadians(0),
+          pitch: Cesium.Math.toRadians(-90),
+          roll: 0
+        }
+      });
+
+      viewer.camera.moveStart.addEventListener(function() {
+        moving++;
+      });
+      viewer.camera.moveEnd.addEventListener(function() {
+        moving--;
+      });
+
+      viewer.scene.screenSpaceCameraController.enableTilt = false;
+      viewer.scene.screenSpaceCameraController.enableTranslate = false;
+      viewer.scene.screenSpaceCameraController.enableLook = false;
+      return viewer;
+    });
+
+    $("#focus").click(function() {
+      $(".layer").toggleClass("focus");
+      viewers.push(viewers.shift());
+    });
+
+    $("body").on("dblclick", function() {
+      $("#focus").click();
+    });
+
+    viewers[0].clock.onTick.addEventListener(function() {
+      if (moving === 0) return;
+      var p = viewers[1].camera.positionCartographic;
+      var q = viewers[0].camera.positionCartographic;
+      viewers[0].camera.setView({
+        destination: Cesium.Cartesian3.fromRadians(q.longitude, q.latitude, p.height, ellipsoid)
+      });
+    });
+  </script>
+</body>
+
+</html>
